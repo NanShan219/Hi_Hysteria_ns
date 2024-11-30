@@ -232,7 +232,7 @@ function getPortBindMsg(){
 function setHysteriaConfig(){
 	mkdir -p /etc/hihy/bin /etc/hihy/conf /etc/hihy/cert  /etc/hihy/result /etc/hihy/acl
 	echoColor yellowBlack "开始配置:"
-    
+
 	useAcme=false
 	useLocalCert=false
 	
@@ -272,10 +272,7 @@ function setHysteriaConfig(){
 		useAcme=false
 		echoColor purple "\n\n->您已选择自签${domain}证书加密.公网ip:"`echoColor red ${ip}`"\n"
 		echo -e "\n"
-    
-		useAcme=true
-		echoColor purple "\n\n->解析正确,使用hysteria内置ACME申请证书.域名:"`echoColor red ${domain}`"\n"
-    
+
 
     echo -e "\033[32m选择协议类型:\n\n\033[0m\033[33m\033[01m1、udp(QUIC,可启动端口跳跃)\n2、faketcp\n3、wechat-video(默认)\033[0m\033[32m\n\n输入序号:\033[0m"
     read protocol
@@ -366,12 +363,11 @@ function setHysteriaConfig(){
 		fi
 	fi
 
-
-    echo -e "\n期望速度,这是客户端的峰值速度,服务端默认不受限。"`echoColor red Tips:脚本会自动*1.10做冗余，您期望过低或者过高会影响转发效率,请如实填写!`
-    echoColor green "请输入客户端期望的下行速度:(默认100,单位:mbps):"
+`	echoColor red Tips:脚本会自动*1.10做冗余，您期望过低或者过高会影响转发效率,请如实填写!`
+    echoColor green "请输入客户端期望的下行速度:(默认200,单位:mbps):"
     read  download
     if [ -z "${download}" ];then
-        download=100
+        download=200
     fi
 	echo -e "\n->客户端下行速度："`echoColor red ${download}`"mbps\n"
     echo -e "\033[32m请输入客户端期望的上行速度(默认20,单位:mbps):\033[0m" 
@@ -381,6 +377,7 @@ function setHysteriaConfig(){
     fi
 	echo -e "\n->客户端上行速度："`echoColor red ${upload}`"mbps\n"
 	echoColor green "请输入认证口令(默认随机生成,建议20位以上强密码):"
+	read auth_secret
 	if [ -z "${auth_secret}" ];then
 		auth_secret=`tr -cd '0-9A-Za-z' < /dev/urandom | fold -w50 | head -n1`
 	fi
@@ -412,10 +409,14 @@ EOF
 )
 	fi
 	echo -e "\n->您选择的验证方式为:"`echoColor red ${auth_type}`"\n"
+	echoColor green "请输入客户端名称备注(默认使用域名/IP区分,例如输入test,则名称为Hys-test):"
+	read remarks
     echoColor green "\n配置录入完成!\n"
     echoColor yellowBlack "执行配置..."
     download=$(($download + $download / 10))
     upload=$(($upload + $upload / 10))
+    r_client=0
+    r_conn=0
     if echo "${useAcme}" | grep -q "false";then
 		if echo "${useLocalCert}" | grep -q "false";then
 			v6str=":" #Is ipv6?
@@ -479,7 +480,7 @@ EOF
 "up_mbps": ${upload},
 "down_mbps": ${download},
 "socks5": {
-"listen": "127.0.0.1:10808",
+"listen": "127.0.0.1:20808",
 "timeout": 300,
 "disable_udp": false
 },
@@ -537,6 +538,7 @@ EOF
 "disable_udp": false,
 ${server_auth_conf}
 "alpn": "h3",
+"acl": "/etc/hihy/acl/hihyServer.acl",
 "max_conn_client": 4096,
 "resolve_preference": "46",
 "disable_mtu_discovery": true
@@ -549,15 +551,12 @@ EOF
 "protocol": "${protocol}",
 "up_mbps": ${upload},
 "down_mbps": ${download},
-"socks5": {
 "listen": "127.0.0.1:20808",
 "timeout": 300,
 "disable_udp": false
 },
 "obfs": "${obfs_str}",
 "alpn": "h3",
-"acl": "acl/routes.acl",
-"mmdb": "acl/Country.mmdb",
 "auth_str": "${auth_str}",
 "server_name": "${domain}",
 "insecure": false,
