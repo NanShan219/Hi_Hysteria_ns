@@ -232,11 +232,10 @@ function getPortBindMsg(){
 function setHysteriaConfig(){
 	mkdir -p /etc/hihy/bin /etc/hihy/conf /etc/hihy/cert  /etc/hihy/result /etc/hihy/acl
 	echoColor yellowBlack "开始配置:"
-	echo -e "\033[32m请选择证书申请方式:\n\n\033[0m\033[33m\033[01m1、使用ACME申请(推荐,需打开tcp 80/443)\n2、使用本地证书文件\n3、自签证书\033[0m\033[32m\n\n输入序号:\033[0m"
-    read certNum
+    
 	useAcme=false
 	useLocalCert=false
-	if [ -z "${certNum}" ] || [ "${certNum}" == "3" ];then
+	
 		echo -e  "\n注意:自签证书近一段时间来无obfs情况下,遭到大量随机阻断"
 		echoColor red "如果一定要使用自签证书,请在下方配置选择使用obfs混淆验证,保证安全"
 		echoColor green "请输入自签证书的域名(默认:wechat.com):"
@@ -273,119 +272,7 @@ function setHysteriaConfig(){
 		useAcme=false
 		echoColor purple "\n\n->您已选择自签${domain}证书加密.公网ip:"`echoColor red ${ip}`"\n"
 		echo -e "\n"
-    elif [ "${certNum}" == "2" ];then
-		echoColor green "请输入证书cert文件路径(需fullchain cert,提供完整证书链):"
-		read cert
-		while :
-		do
-			if [ ! -f "${cert}" ];then
-				echoColor red "\n\n->路径不存在,请重新输入!"
-				echoColor green "请输入证书cert文件路径:"
-				read  cert
-			else
-				break
-			fi
-		done
-		echo -e "\n\n->cert文件路径: "`echoColor red ${cert}`"\n"
-		echoColor green "请输入证书key文件路径:"
-		read key
-		while :
-		do
-			if [ ! -f "${key}" ];then
-				echoColor red "\n\n->路径不存在,请重新输入!"
-				echoColor green "请输入证书key文件路径:"
-				read  key
-			else
-				break
-			fi
-		done
-		echo -e "\n\n->key文件路径: "`echoColor red ${key}`"\n"
-		echoColor green "请输入所选证书域名:"
-		read domain
-		while :
-		do
-			if [ -z "${domain}" ];then
-				echoColor red "\n\n->此选项不能为空,请重新输入!"
-				echoColor green "请输入所选证书域名:"
-				read  domain
-			else
-				break
-			fi
-		done
-		useAcme=false
-		useLocalCert=true
-		echoColor purple "\n\n->您已选择本地证书加密.域名:"`echoColor red ${domain}`"\n"
-    else 
-    	echoColor green "请输入域名(需正确解析到本机,关闭CDN):"
-		read domain
-		while :
-		do
-			if [ -z "${domain}" ];then
-				echoColor red "\n\n->此选项不能为空,请重新输入!"
-				echoColor green "请输入域名(需正确解析到本机,关闭CDN):"
-				read  domain
-			else
-				break
-			fi
-		done
-		while :
-		do	
-			echoColor purple "\n->检测${domain},DNS解析..."
-			ip_resolv=`dig +short ${domain} A`
-			if [ -z "${ip_resolv}" ];then
-				ip_resolv=`dig +short ${domain} AAAA`
-			fi
-			if [ -z "${ip_resolv}" ];then
-				echoColor red "\n\n->域名解析失败,没有获得任何dns记录(A/AAAA),请检查域名是否正确解析到本机!"
-				echoColor green "请输入域名(需正确解析到本机,关闭CDN):"
-				read  domain
-				continue
-			fi
-			remoteip=`echo ${ip_resolv} | awk -F " " '{print $1}'`
-			v6str=":" #Is ipv6?
-			result=$(echo ${remoteip} | grep ${v6str})
-			if [ "${result}" != "" ];then
-				localip=`curl -6 -s -m 8 ip.sb`
-			else
-				localip=`curl -4 -s -m 8 ip.sb`
-			fi
-			if [ -z "${localip}" ];then
-				localip=`curl -s -m 8 ip.sb` #如果上面的ip.sb都失败了,最后检测一次
-				if [ -z "${localip}" ];then
-					echoColor red "\n\n->获取本机ip失败,请检查网络连接!curl -s -m 8 ip.sb"
-					exit 1
-				fi
-			fi
-			if [ "${localip}" != "${remoteip}" ];then
-				echo -e " \n\n->本机ip: "`echoColor red ${localip}`" \n\n->域名ip: "`echoColor red ${remoteip}`"\n"
-				echoColor green "多ip或者dns未生效时可能检测失败,如果你确定正确解析到了本机,是否自己指定本机ip? [y/N]:"
-				read isLocalip
-				if [ "${isLocalip}" == "y" ];then
-					echoColor green "请自行输入本机ip:"
-					read localip
-					while :
-					do
-						if [ -z "${localip}" ];then
-							echoColor red "\n\n->此选项不能为空,请重新输入!"
-							echoColor green "请输入本机ip:"
-							read  localip
-						else
-							break
-						fi
-					done
-				fi
-				if [ "${localip}" != "${remoteip}" ];then
-					echoColor red "\n\n->域名解析到的ip与本机ip不一致,请重新输入!"
-					echoColor green "请输入域名(需正确解析到本机,关闭CDN):"
-					read  domain
-					continue
-				else
-					break
-				fi
-			else
-				break
-			fi
-		done
+    
 		useAcme=true
 		echoColor purple "\n\n->解析正确,使用hysteria内置ACME申请证书.域名:"`echoColor red ${domain}`"\n"
     fi
@@ -479,27 +366,21 @@ function setHysteriaConfig(){
 		fi
 	fi
 
-    echoColor green "请输入您到此服务器的平均延迟,关系到转发速度(默认200,单位:ms):"
-    read  delay
-    if [ -z "${delay}" ];then
-		delay=200
-    fi
-	echo -e "\n->延迟:`echoColor red ${delay}`ms\n"
+
     echo -e "\n期望速度,这是客户端的峰值速度,服务端默认不受限。"`echoColor red Tips:脚本会自动*1.10做冗余，您期望过低或者过高会影响转发效率,请如实填写!`
-    echoColor green "请输入客户端期望的下行速度:(默认50,单位:mbps):"
+    echoColor green "请输入客户端期望的下行速度:(默认100,单位:mbps):"
     read  download
     if [ -z "${download}" ];then
-        download=50
+        download=100
     fi
 	echo -e "\n->客户端下行速度："`echoColor red ${download}`"mbps\n"
-    echo -e "\033[32m请输入客户端期望的上行速度(默认10,单位:mbps):\033[0m" 
+    echo -e "\033[32m请输入客户端期望的上行速度(默认20,单位:mbps):\033[0m" 
     read  upload
     if [ -z "${upload}" ];then
-        upload=10
+        upload=20
     fi
 	echo -e "\n->客户端上行速度："`echoColor red ${upload}`"mbps\n"
 	echoColor green "请输入认证口令(默认随机生成,建议20位以上强密码):"
-	read auth_secret
 	if [ -z "${auth_secret}" ];then
 		auth_secret=`tr -cd '0-9A-Za-z' < /dev/urandom | fold -w50 | head -n1`
 	fi
@@ -531,14 +412,10 @@ EOF
 )
 	fi
 	echo -e "\n->您选择的验证方式为:"`echoColor red ${auth_type}`"\n"
-	echoColor green "请输入客户端名称备注(默认使用域名/IP区分,例如输入test,则名称为Hys-test):"
-	read remarks
     echoColor green "\n配置录入完成!\n"
     echoColor yellowBlack "执行配置..."
     download=$(($download + $download / 10))
     upload=$(($upload + $upload / 10))
-    r_client=$(($delay * 2 * $download / 1000 * 1024 * 1024))
-    r_conn=$(($r_client / 4))
     if echo "${useAcme}" | grep -q "false";then
 		if echo "${useLocalCert}" | grep -q "false";then
 			v6str=":" #Is ipv6?
@@ -568,27 +445,17 @@ EOF
 "protocol": "${protocol}",
 "up_mbps": ${upload},
 "down_mbps": ${download},
-"http": {
-"listen": "127.0.0.1:10809",
-"timeout" : 300,
-"disable_udp": false
-},
 "socks5": {
-"listen": "127.0.0.1:10808",
+"listen": "127.0.0.1:20808",
 "timeout": 300,
 "disable_udp": false
 },
 "obfs": "${obfs_str}",
 "auth_str": "${auth_str}",
 "alpn": "h3",
-"acl": "acl/routes.acl",
-"mmdb": "acl/Country.mmdb",
 "server_name": "${domain}",
 "insecure": true,
-"recv_window_conn": ${r_conn},
-"recv_window": ${r_client},
 "disable_mtu_discovery": true,
-"resolver": "https://223.5.5.5/dns-query",
 "retry": 3,
 "retry_interval": 3,
 "quit_on_disconnect": false,
@@ -611,11 +478,6 @@ EOF
 "protocol": "${protocol}",
 "up_mbps": ${upload},
 "down_mbps": ${download},
-"http": {
-"listen": "127.0.0.1:10809",
-"timeout" : 300,
-"disable_udp": false
-},
 "socks5": {
 "listen": "127.0.0.1:10808",
 "timeout": 300,
@@ -623,15 +485,10 @@ EOF
 },
 "obfs": "${obfs_str}",
 "alpn": "h3",
-"acl": "acl/routes.acl",
-"mmdb": "acl/Country.mmdb",
 "auth_str": "${auth_str}",
 "server_name": "${domain}",
 "insecure": false,
-"recv_window_conn": ${r_conn},
-"recv_window": ${r_client},
 "disable_mtu_discovery": true,
-"resolver": "https://223.5.5.5/dns-query",
 "retry": 3,
 "retry_interval": 3,
 "quit_on_disconnect": false,
@@ -652,8 +509,6 @@ EOF
 ${server_auth_conf}
 "alpn": "h3",
 "acl": "/etc/hihy/acl/hihyServer.acl",
-"recv_window_conn": ${r_conn},
-"recv_window_client": ${r_client},
 "max_conn_client": 4096,
 "resolve_preference": "46",
 "disable_mtu_discovery": true
@@ -682,9 +537,6 @@ EOF
 "disable_udp": false,
 ${server_auth_conf}
 "alpn": "h3",
-"acl": "/etc/hihy/acl/hihyServer.acl",
-"recv_window_conn": ${r_conn},
-"recv_window_client": ${r_client},
 "max_conn_client": 4096,
 "resolve_preference": "46",
 "disable_mtu_discovery": true
@@ -697,13 +549,8 @@ EOF
 "protocol": "${protocol}",
 "up_mbps": ${upload},
 "down_mbps": ${download},
-"http": {
-"listen": "127.0.0.1:10809",
-"timeout" : 300,
-"disable_udp": false
-},
 "socks5": {
-"listen": "127.0.0.1:10808",
+"listen": "127.0.0.1:20808",
 "timeout": 300,
 "disable_udp": false
 },
@@ -714,10 +561,7 @@ EOF
 "auth_str": "${auth_str}",
 "server_name": "${domain}",
 "insecure": false,
-"recv_window_conn": ${r_conn},
-"recv_window": ${r_client},
 "disable_mtu_discovery": true,
-"resolver": "https://223.5.5.5/dns-query",
 "retry": 3,
 "retry_interval": 3,
 "quit_on_disconnect": false,
