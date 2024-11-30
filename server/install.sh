@@ -237,9 +237,7 @@ function setHysteriaConfig(){
 	useLocalCert=false
 	
 		echo -e  "\n注意:自签证书近一段时间来无obfs情况下,遭到大量随机阻断"
-		echoColor red "如果一定要使用自签证书,请在下方配置选择使用obfs混淆验证,保证安全"
-		echoColor green "请输入自签证书的域名(默认:wechat.com):"
-		read domain
+		echoColor green "证书的域名(默认:wechat.com):"
 		if [ -z "${domain}" ];then
 			domain="wechat.com"
 		fi
@@ -275,7 +273,7 @@ function setHysteriaConfig(){
 
 
     echo -e "\033[32m选择协议类型:\n\n\033[0m\033[33m\033[01m1、udp(QUIC,可启动端口跳跃)\n2、faketcp\n3、wechat-video(默认)\033[0m\033[32m\n\n输入序号:\033[0m"
-    read protocol
+	
 	ut=
     if [ -z "${protocol}" ] || [ $protocol == "3" ];then
 		protocol="wechat-video"
@@ -292,7 +290,6 @@ function setHysteriaConfig(){
 	while :
 	do
 		echoColor green "请输入你想要开启的端口,此端口是server端口,建议10000-65535.(默认随机)"
-		read  port
 		if [ -z "${port}" ];then
 			port=$(($(od -An -N2 -i /dev/random) % (65534 - 10001) + 10001))
 			echo -e "\n->使用随机端口:"`echoColor red ${ut}/${port}`"\n"
